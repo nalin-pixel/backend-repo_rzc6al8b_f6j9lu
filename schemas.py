@@ -1,48 +1,81 @@
 """
-Database Schemas
+Database Schemas for Specialty Coffee Ecommerce
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a MongoDB collection. The collection name is the
+lowercased class name (e.g., Product -> "product").
 """
-
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
-from typing import Optional
 
-# Example schemas (replace with your own):
+# Core domain
+class Product(BaseModel):
+    title: str = Field(..., description="Product title")
+    slug: str = Field(..., description="URL-friendly slug")
+    description: str = Field(..., description="Long description")
+    price: float = Field(..., ge=0, description="Base price in USD")
+    images: List[str] = Field(default_factory=list, description="Image URLs")
+    roast_level: Literal["light", "medium", "dark"] = Field(..., description="Roast level")
+    origin: Optional[str] = Field(None, description="Country/region of origin")
+    flavor_notes: List[str] = Field(default_factory=list, description="Flavor notes")
+    grind_options: List[str] = Field(default_factory=lambda: ["whole bean","espresso","filter","french press"]) 
+    size_options: List[str] = Field(default_factory=lambda: ["250g","500g","1kg"])
+    in_stock: bool = Field(True, description="Whether available for purchase")
+    inventory: int = Field(100, ge=0, description="Units available (virtual stock)")
+    rating: float = Field(4.8, ge=0, le=5, description="Average rating")
+    tags: List[str] = Field(default_factory=list, description="Search/filter tags")
+
+class Testimonial(BaseModel):
+    name: str
+    rating: int = Field(..., ge=1, le=5)
+    comment: str
+    photo_url: Optional[str] = None
+
+class BlogPost(BaseModel):
+    title: str
+    slug: str
+    excerpt: str
+    content: str
+    tags: List[str] = Field(default_factory=list)
+    cover_image: Optional[str] = None
 
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    name: str
+    email: str
+    phone: Optional[str] = None
+    address: Optional[str] = None
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class OrderItem(BaseModel):
+    product_id: str
+    title: str
+    size: str
+    grind: str
+    quantity: int = Field(..., ge=1)
+    unit_price: float = Field(..., ge=0)
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Order(BaseModel):
+    user_email: str
+    items: List[OrderItem]
+    subtotal: float
+    shipping: float
+    total: float
+    status: Literal["pending","paid","shipped","delivered","cancelled"] = "paid"
+    shipping_address: Optional[str] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class WholesaleInquiry(BaseModel):
+    name: str
+    business_name: str
+    email: str
+    phone: Optional[str] = None
+    volume_needed: str
+    message: Optional[str] = None
+
+class ContactMessage(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    message: str
+
+class NewsletterSubscription(BaseModel):
+    email: str
+
+# Note: These schemas are surfaced at GET /schema for admin tooling.
